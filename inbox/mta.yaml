@@ -1,0 +1,93 @@
+_schema-version: "3.2"
+ID: inbox
+version: 0.0.1
+modules:
+- name: inbox-destination-content
+  type: com.sap.application.content
+  requires:
+  - name: inbox-destination-service
+    parameters:
+      content-target: true
+  - name: inbox_html_repo_host
+    parameters:
+      service-key:
+        name: inbox_html_repo_host-key
+  - name: uaa_inbox
+    parameters:
+      service-key:
+        name: uaa_inbox-key
+  parameters:
+    content:
+      instance:
+        destinations:
+        - Name: fiori_inbox_html_repo_host
+          ServiceInstanceName: inbox-html5-app-host-service
+          ServiceKeyName: inbox_html_repo_host-key
+          sap.cloud.service: fiori
+        - Authentication: OAuth2UserTokenExchange
+          Name: fiori_uaa_inbox
+          ServiceInstanceName: inbox-xsuaa-service
+          ServiceKeyName: uaa_inbox-key
+          sap.cloud.service: fiori
+        existing_destinations_policy: ignore
+  build-parameters:
+    no-source: true
+- name: inbox-app-content
+  type: com.sap.application.content
+  path: .
+  requires:
+  - name: inbox_html_repo_host
+    parameters:
+      content-target: true
+  build-parameters:
+    build-result: resources
+    requires:
+    - artifacts:
+      - fiori.zip
+      name: fiori
+      target-path: resources/
+- name: fiori
+  type: html5
+  path: fiori
+  build-parameters:
+    build-result: dist
+    builder: custom
+    commands:
+    - npm install
+    - npm run build:cf
+    supported-platforms: []
+resources:
+- name: inbox-destination-service
+  type: org.cloudfoundry.managed-service
+  parameters:
+    config:
+      HTML5Runtime_enabled: true
+      init_data:
+        instance:
+          destinations:
+          - Authentication: NoAuthentication
+            Name: ui5
+            ProxyType: Internet
+            Type: HTTP
+            URL: https://ui5.sap.com
+          existing_destinations_policy: update
+      version: 1.0.0
+    service: destination
+    service-name: inbox-destination-service
+    service-plan: lite
+- name: inbox_html_repo_host
+  type: org.cloudfoundry.managed-service
+  parameters:
+    service: html5-apps-repo
+    service-name: inbox-html5-app-host-service
+    service-plan: app-host
+- name: uaa_inbox
+  type: org.cloudfoundry.managed-service
+  parameters:
+    path: ./xs-security.json
+    service: xsuaa
+    service-name: inbox-xsuaa-service
+    service-plan: application
+parameters:
+  deploy_mode: html5-repo
+  enable-parallel-deployments: true
